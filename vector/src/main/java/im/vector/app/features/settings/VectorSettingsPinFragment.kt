@@ -62,7 +62,7 @@ class VectorSettingsPinFragment @Inject constructor(
 
     private fun shouldCheckBiometricPref(isPinCodeChecked: Boolean): Boolean {
         return isPinCodeChecked && // Biometric auth depends on PIN auth
-                biometricHelper.isSystemAuthEnabled &&
+                biometricHelper.isSystemAuthEnabledAndValid &&
                 biometricHelper.isSystemKeyValid
     }
 

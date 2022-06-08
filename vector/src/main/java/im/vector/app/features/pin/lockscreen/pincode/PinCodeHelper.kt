@@ -36,8 +36,7 @@ class PinCodeHelper @Inject constructor(
      * Creates a PIN code key if needed and stores the PIN code encrypted with it.
      */
     suspend fun createPinCode(pinCode: String) {
-        val pinCodeCrypto = lockScreenKeyRepository.getPinCodeKey()
-        val encryptedValue = pinCodeCrypto.encryptToString(pinCode)
+        val encryptedValue = lockScreenKeyRepository.encryptPinCode(pinCode)
         encryptedStorage.savePinCode(encryptedValue)
     }
 
@@ -46,36 +45,21 @@ class PinCodeHelper @Inject constructor(
      */
     suspend fun verifyPinCode(pinCode: String): Boolean {
         val encryptedPinCode = encryptedStorage.getPinCode() ?: return false
-        val pinCodeCrypto = lockScreenKeyRepository.getPinCodeKey()
-        return pinCodeCrypto.decryptToString(encryptedPinCode) == pinCode
+        return lockScreenKeyRepository.decryptPinCode(encryptedPinCode) == pinCode
     }
 
     /**
      * Deletes the store PIN code as well as the associated key.
      */
-    suspend fun deletePinCode(): Boolean {
+    suspend fun deletePinCode() {
         encryptedStorage.deletePinCode()
-        return lockScreenKeyRepository.deletePinCodeKey()
+        lockScreenKeyRepository.deletePinCodeKey()
     }
 
     /**
-     * Migrates from the legacy PIN code key to the new one.
+     * Migrates the PIN code key and encrypted value to use a more secure cipher.
      */
-    suspend fun migrateFromLegacyKey() {
-        if (!lockScreenKeyRepository.isUsingLegacyPinCodeKey()) return
-        val encryptedPinCode = encryptedStorage.getPinCode() ?: return
-
-        // Get legacy PIN code crypto helper
-        val pinCodeCrypto = lockScreenKeyRepository.getPinCodeKey()
-        // Decrypt PIN code
-        val savedPinCode = pinCodeCrypto.decryptToString(encryptedPinCode)
-        // Delete old key
-        lockScreenKeyRepository.deletePinCodeKey()
-        // Create new helper with the new key
-        val newPinCodeCrypto = lockScreenKeyRepository.getPinCodeKey()
-        // Encrypt PIN code with the new key
-        val newEncryptedPinCode = newPinCodeCrypto.encryptToString(savedPinCode)
-        // Save the new encrypted PIN code
-        encryptedStorage.savePinCode(newEncryptedPinCode)
+    suspend fun migratePinCodeIfNeeded() {
+        lockScreenKeyRepository.migrateKeysIfNeeded()
     }
 }

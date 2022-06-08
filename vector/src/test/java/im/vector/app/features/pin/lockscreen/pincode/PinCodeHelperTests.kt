@@ -16,7 +16,6 @@
 
 package im.vector.app.features.pin.lockscreen.pincode
 
-import im.vector.app.features.pin.lockscreen.crypto.KeyStoreCrypto
 import im.vector.app.features.pin.lockscreen.crypto.LockScreenKeyRepository
 import io.mockk.clearAllMocks
 import io.mockk.coEvery
@@ -61,14 +60,11 @@ class PinCodeHelperTests {
 
     @Test
     fun `createPinCode creates a pin code key, encrypts the actual pin code and stores it`() = runTest {
-        val keyStoreCrypto = mockk<KeyStoreCrypto> {
-            every { encryptToString(any<String>()) } returns "SOME_ENCRYPTED_VALUE"
-        }
-        every { lockScreenKeyRepository.getPinCodeKey() } returns keyStoreCrypto
+        every { lockScreenKeyRepository.encryptPinCode(any()) } returns "SOME_ENCRYPTED_VALUE"
 
         pinCodeHelper.createPinCode("1234")
 
-        verify { keyStoreCrypto.encryptToString(any<String>()) }
+        verify { lockScreenKeyRepository.encryptPinCode(any()) }
         coVerify { storageEncrypted.savePinCode(any()) }
     }
 
@@ -85,13 +81,10 @@ class PinCodeHelperTests {
         val originalPinCode = "1234"
         val encryptedPinCode = "SOME_ENCRYPTED_VALUE"
         coEvery { storageEncrypted.getPinCode() } returns encryptedPinCode
-        val keyStoreCrypto = mockk<KeyStoreCrypto> {
-            every { decryptToString(encryptedPinCode) } returns originalPinCode
-        }
-        every { lockScreenKeyRepository.getPinCodeKey() } returns keyStoreCrypto
+        every { lockScreenKeyRepository.decryptPinCode(encryptedPinCode) } returns originalPinCode
         pinCodeHelper.verifyPinCode(originalPinCode).shouldBeTrue()
 
-        every { keyStoreCrypto.decryptToString(encryptedPinCode) } returns "SOME_OTHER_VALUE"
+        every { lockScreenKeyRepository.decryptPinCode(encryptedPinCode) } returns "SOME_OTHER_VALUE"
         pinCodeHelper.verifyPinCode(originalPinCode).shouldBeFalse()
     }
 }

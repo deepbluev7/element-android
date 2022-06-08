@@ -33,8 +33,6 @@ def mockk = "1.12.3" // We need to use 1.12.3 to have mocking in androidTest unt
 def espresso = "3.4.0"
 def androidxTest = "1.4.0"
 def androidxOrchestrator = "1.4.1"
-
-
 ext.libs = [
         gradle      : [
                 'gradlePlugin'            : "com.android.tools.build:gradle:$gradle",
@@ -85,6 +83,7 @@ ext.libs = [
                 'dagger'                  : "com.google.dagger:dagger:$dagger",
                 'daggerCompiler'          : "com.google.dagger:dagger-compiler:$dagger",
                 'hilt'                    : "com.google.dagger:hilt-android:$dagger",
+                'hiltAndroidTesting'      : "com.google.dagger:hilt-android-testing:$dagger",
                 'hiltCompiler'            : "com.google.dagger:hilt-compiler:$dagger"
         ],
         squareup    : [
@@ -154,3 +153,5 @@ ext.libs = [
                 'junit'                  : "junit:junit:4.13.2"
         ]
 ]
+
+

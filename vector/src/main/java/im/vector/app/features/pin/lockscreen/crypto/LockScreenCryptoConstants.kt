@@ -16,20 +16,8 @@
 
 package im.vector.app.features.pin.lockscreen.crypto
 
-import android.content.Context
-import android.os.Build
-import android.security.keystore.KeyGenParameterSpec
+object LockScreenCryptoConstants {
+    const val ANDROID_KEY_STORE = "AndroidKeyStore"
 
-/**
- * Helper to crate a [KeyStoreCrypto] compatible with APIs >= [Build.VERSION_CODES.M] or a legacy one.
- */
-object KeyStoreCryptoCompat {
-
-    fun create(context: Context, alias: String, keyGenParameterSpecBuilder: KeyGenParameterSpec.Builder.() -> Unit = {}): KeyStoreCrypto {
-        return if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            KeyStoreCryptoLegacyImpl(context, alias)
-        } else {
-            KeyStoreCryptoImpl(alias, keyGenParameterSpecBuilder)
-        }
-    }
+    const val LEGACY_PIN_CODE_KEY_ALIAS = "fp_pin_lock_screen_key_store"
 }

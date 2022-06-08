@@ -28,6 +28,7 @@ import org.matrix.android.sdk.api.MatrixCoroutineDispatchers
 import org.matrix.android.sdk.api.auth.AuthenticationService
 import org.matrix.android.sdk.api.auth.HomeServerHistoryService
 import org.matrix.android.sdk.api.raw.RawService
+import org.matrix.android.sdk.api.session.securestorage.SecureStorageService
 import org.matrix.android.sdk.api.settings.LightweightSettingsStorage
 import org.matrix.android.sdk.internal.SessionManager
 import org.matrix.android.sdk.internal.auth.AuthModule
@@ -93,6 +94,8 @@ internal interface MatrixComponent {
     fun backgroundDetectionObserver(): BackgroundDetectionObserver
 
     fun sessionManager(): SessionManager
+
+    fun secureStorageService(): SecureStorageService
 
     fun matrixWorkerFactory(): MatrixWorkerFactory
 

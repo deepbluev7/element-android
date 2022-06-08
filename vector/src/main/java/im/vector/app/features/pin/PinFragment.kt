@@ -36,13 +36,10 @@ import im.vector.app.features.pin.lockscreen.biometrics.BiometricAuthError
 import im.vector.app.features.pin.lockscreen.configuration.LockScreenConfiguratorProvider
 import im.vector.app.features.pin.lockscreen.configuration.LockScreenMode
 import im.vector.app.features.pin.lockscreen.crypto.LockScreenKeyRepository
-import im.vector.app.features.pin.lockscreen.pincode.PinCodeHelper
 import im.vector.app.features.pin.lockscreen.ui.AuthMethod
 import im.vector.app.features.pin.lockscreen.ui.LockScreenFragment
 import im.vector.app.features.pin.lockscreen.ui.LockScreenListener
 import im.vector.app.features.settings.VectorPreferences
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
 import timber.log.Timber
 import javax.inject.Inject
@@ -57,7 +54,6 @@ class PinFragment @Inject constructor(
         private val vectorPreferences: VectorPreferences,
         private val configuratorProvider: LockScreenConfiguratorProvider,
         private val lockScreenKeyRepository: LockScreenKeyRepository,
-        private val pinCodeHelper: PinCodeHelper,
 ) : VectorBaseFragment<FragmentPinBinding>() {
 
     private val fragmentArgs: PinArgs by args()
@@ -112,12 +108,6 @@ class PinFragment @Inject constructor(
             }
 
             override fun onAuthenticationSuccess(authMethod: AuthMethod) {
-                // If a system key was created and a legacy pin code key is used, migrate this legacy key
-                val needsLegacyKeyMigration = authMethod == AuthMethod.BIOMETRICS && lockScreenKeyRepository.isUsingLegacyPinCodeKey()
-                if (needsLegacyKeyMigration) {
-                    // We need to run this even if the lifecycleScope is canceled
-                    MainScope().launch { pinCodeHelper.migrateFromLegacyKey() }
-                }
                 pinCodeStore.resetCounter()
                 vectorBaseActivity.setResult(Activity.RESULT_OK)
                 vectorBaseActivity.finish()

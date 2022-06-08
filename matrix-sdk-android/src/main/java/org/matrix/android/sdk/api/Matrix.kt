@@ -17,6 +17,8 @@
 package org.matrix.android.sdk.api
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.work.Configuration
 import androidx.work.WorkManager
@@ -65,6 +67,8 @@ class Matrix(context: Context, matrixConfiguration: MatrixConfiguration) {
     @Inject internal lateinit var lightweightSettingsStorage: LightweightSettingsStorage
     @Inject internal lateinit var secureStorageService: SecureStorageService
 
+    private val uiHandler = Handler(Looper.getMainLooper())
+
     init {
         val appContext = context.applicationContext
         Monarchy.init(appContext)
@@ -76,7 +80,9 @@ class Matrix(context: Context, matrixConfiguration: MatrixConfiguration) {
                     .build()
             WorkManager.initialize(appContext, configuration)
         }
-        ProcessLifecycleOwner.get().lifecycle.addObserver(backgroundDetectionObserver)
+        uiHandler.post {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(backgroundDetectionObserver)
+        }
     }
 
     /**

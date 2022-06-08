@@ -31,8 +31,12 @@ import im.vector.app.features.pin.PinCodeStore
 import im.vector.app.features.pin.lockscreen.configuration.LockScreenConfiguration
 import im.vector.app.features.pin.lockscreen.configuration.LockScreenMode
 import im.vector.app.features.pin.lockscreen.crypto.LockScreenKeyRepository
+import im.vector.app.features.pin.lockscreen.crypto.PinCodeMigrator
 import im.vector.app.features.pin.lockscreen.pincode.EncryptedPinCodeStorage
 import im.vector.app.features.pin.lockscreen.ui.LockScreenViewModel
+import im.vector.app.features.settings.VectorPreferences
+import org.matrix.android.sdk.api.Matrix
+import org.matrix.android.sdk.api.session.securestorage.SecureStorageService
 import javax.inject.Singleton
 
 @Module
@@ -51,7 +55,19 @@ object LockScreenModule {
 
     @Provides
     @Singleton
-    fun provideKeyRepository(@ApplicationContext context: Context) = LockScreenKeyRepository(context, "vector-lockscreen")
+    fun provideKeyRepository(
+            pinCodeMigrator: PinCodeMigrator,
+            secureStorageService: SecureStorageService,
+            vectorPreferences: VectorPreferences,
+    ) = LockScreenKeyRepository(
+            baseName = "vector",
+            pinCodeMigrator,
+            secureStorageService,
+            vectorPreferences,
+    )
+
+    @Provides
+    fun provideSecureStorageService(matrix: Matrix): SecureStorageService = matrix.secureStorageService()
 
     @Provides
     fun provideBiometricManager(@ApplicationContext context: Context) = BiometricManager.from(context)

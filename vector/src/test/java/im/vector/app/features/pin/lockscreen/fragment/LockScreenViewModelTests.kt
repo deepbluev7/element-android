@@ -63,11 +63,20 @@ class LockScreenViewModelTests {
     }
 
     @Test
+    fun `init migrates old keys to new ones if needed`() {
+        val initialState = createViewState()
+        val configProvider = LockScreenConfiguratorProvider(createDefaultConfiguration())
+        LockScreenViewModel(initialState, pinCodeHelper, biometricHelper, configProvider)
+
+        coVerify { pinCodeHelper.migratePinCodeIfNeeded() }
+    }
+
+    @Test
     fun `when ViewModel is instantiated initialState is updated with biometric info`() {
         val initialState = createViewState()
         val configProvider = LockScreenConfiguratorProvider(createDefaultConfiguration())
         // This should set canUseBiometricAuth to true
-        every { biometricHelper.isSystemAuthEnabled } returns true
+        every { biometricHelper.isSystemAuthEnabledAndValid } returns true
         val viewModel = LockScreenViewModel(initialState, pinCodeHelper, biometricHelper, configProvider)
         val newState = withState(viewModel) { it }
         initialState shouldNotBeEqualTo newState
@@ -175,12 +184,12 @@ class LockScreenViewModelTests {
     fun `when showBiometricPrompt catches a KeyPermanentlyInvalidatedException it disables biometric authentication`() = runTest {
         AndroidVersionTestOverrider.override(Build.VERSION_CODES.M)
 
-        every { biometricHelper.isSystemAuthEnabled } returns true
+        every { biometricHelper.isSystemAuthEnabledAndValid } returns true
         every { biometricHelper.isSystemKeyValid } returns true
         val exception = KeyPermanentlyInvalidatedException()
         coEvery { biometricHelper.authenticate(any<FragmentActivity>()) } throws exception
         coEvery { biometricHelper.disableAuthentication() } coAnswers {
-            every { biometricHelper.isSystemAuthEnabled } returns false
+            every { biometricHelper.isSystemAuthEnabledAndValid } returns false
         }
         val configuration = createDefaultConfiguration(mode = LockScreenMode.VERIFY, needsNewCodeValidation = true, isBiometricsEnabled = true)
         val configProvider = LockScreenConfiguratorProvider(configuration)

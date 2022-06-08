@@ -108,24 +108,25 @@ class BiometricHelperTests {
     fun isSystemAuthEnabledReturnsTrueIfAnyAuthenticationMethodIsAvailableAndEnabledAndSystemKeyExists() {
         val biometricHelper = mockk<BiometricHelper>(relaxed = true) {
             every { hasSystemKey } returns true
+            every { isSystemKeyValid } returns true
             every { canUseAnySystemAuth } answers { callOriginal() }
-            every { isSystemAuthEnabled } answers { callOriginal() }
+            every { isSystemAuthEnabledAndValid } answers { callOriginal() }
         }
-        biometricHelper.isSystemAuthEnabled.shouldBeFalse()
+        biometricHelper.isSystemAuthEnabledAndValid.shouldBeFalse()
 
         every { biometricHelper.canUseWeakBiometricAuth } returns true
-        biometricHelper.isSystemAuthEnabled.shouldBeTrue()
+        biometricHelper.isSystemAuthEnabledAndValid.shouldBeTrue()
 
         every { biometricHelper.canUseWeakBiometricAuth } returns false
         every { biometricHelper.canUseStrongBiometricAuth } returns true
-        biometricHelper.isSystemAuthEnabled.shouldBeTrue()
+        biometricHelper.isSystemAuthEnabledAndValid.shouldBeTrue()
 
         every { biometricHelper.canUseStrongBiometricAuth } returns false
         every { biometricHelper.canUseDeviceCredentialsAuth } returns true
-        biometricHelper.isSystemAuthEnabled.shouldBeTrue()
+        biometricHelper.isSystemAuthEnabledAndValid.shouldBeTrue()
 
-        every { biometricHelper.hasSystemKey } returns false
-        biometricHelper.isSystemAuthEnabled.shouldBeFalse()
+        every { biometricHelper.isSystemKeyValid } returns false
+        biometricHelper.isSystemAuthEnabledAndValid.shouldBeFalse()
     }
 
     @Test
@@ -161,7 +162,7 @@ class BiometricHelperTests {
     @Test
     fun authenticateShowsPrompt() = runTest {
         val biometricUtils = createBiometricUtils(createDefaultConfiguration(isBiometricsEnabled = true))
-        every { lockScreenKeyRepository.hasSystemKey() } returns true
+        every { lockScreenKeyRepository.isSystemKeyValid() } returns true
         val latch = CountDownLatch(1)
         with(ActivityScenario.launch(LockScreenTestActivity::class.java)) {
             onActivity { activity ->
@@ -182,7 +183,7 @@ class BiometricHelperTests {
         val biometricUtils = createBiometricUtils(createDefaultConfiguration(isBiometricsEnabled = true))
         mockkObject(DevicePromptCheck)
         every { DevicePromptCheck.isDeviceWithNoBiometricUI } returns true
-        every { lockScreenKeyRepository.hasSystemKey() } returns true
+        every { lockScreenKeyRepository.isSystemKeyValid() } returns true
         val latch = CountDownLatch(1)
         val intent = Intent(InstrumentationRegistry.getInstrumentation().targetContext, LockScreenTestActivity::class.java)
         with(ActivityScenario.launch<LockScreenTestActivity>(intent)) {

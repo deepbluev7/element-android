@@ -14,15 +14,18 @@
  * limitations under the License.
  */
 
-package im.vector.app.features.pin.lockscreen
+package im.vector.app
 
-import im.vector.app.features.pin.lockscreen.crypto.KeyStoreCrypto
-import java.security.KeyStore
+import android.app.Application
+import androidx.work.Configuration
+import dagger.hilt.android.testing.CustomTestApplication
+import java.util.concurrent.Executors
 
-object LockScreenTestUtils {
+@CustomTestApplication(TestApplication::class)
+open class TestApplication : Application(), Configuration.Provider {
 
-    fun deleteKeyAlias(alias: String) = with(KeyStore.getInstance(KeyStoreCrypto.ANDROID_KEY_STORE)) {
-        load(null)
-        deleteEntry(alias)
-    }
+    override fun getWorkManagerConfiguration(): Configuration =
+            Configuration.Builder()
+                .setExecutor(Executors.newCachedThreadPool())
+                .build()
 }

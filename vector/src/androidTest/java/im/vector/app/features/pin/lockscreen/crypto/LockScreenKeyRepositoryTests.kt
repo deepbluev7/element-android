@@ -16,88 +16,106 @@
 
 package im.vector.app.features.pin.lockscreen.crypto
 
-import androidx.test.platform.app.InstrumentationRegistry
-import im.vector.app.features.pin.lockscreen.LockScreenTestUtils
+import dagger.hilt.android.testing.HiltAndroidRule
+import dagger.hilt.android.testing.HiltAndroidTest
+import im.vector.app.features.settings.VectorPreferences
+import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
-import io.mockk.unmockkObject
+import io.mockk.spyk
 import io.mockk.verify
-import org.amshove.kluent.shouldBeEqualTo
 import org.amshove.kluent.shouldBeFalse
 import org.amshove.kluent.shouldBeTrue
 import org.junit.After
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.matrix.android.sdk.api.session.securestorage.SecureStorageService
+import java.security.KeyStore
+import javax.inject.Inject
 
+@HiltAndroidTest
 class LockScreenKeyRepositoryTests {
 
+    @get:Rule
+    val hiltRule = HiltAndroidRule(this)
+
+    @Inject
+    lateinit var secureStorageService: SecureStorageService
+
     private lateinit var lockScreenKeyRepository: LockScreenKeyRepository
+    private val pinCodeMigrator: PinCodeMigrator = mockk(relaxed = true)
+    private lateinit var spySecureStorageService: SecureStorageService
+    private val vectorPreferences: VectorPreferences = mockk(relaxed = true)
+    private lateinit var systemKeyHelper: SystemKeyHelper
+
+    private val keyStore: KeyStore by lazy {
+        KeyStore.getInstance(LockScreenCryptoConstants.ANDROID_KEY_STORE).also { it.load(null) }
+    }
 
     @Before
     fun setup() {
-        mockkObject(KeyStoreCryptoCompat)
+        hiltRule.inject()
 
-        LockScreenTestUtils.deleteKeyAlias("base.pin_code")
-        LockScreenTestUtils.deleteKeyAlias("base.system")
+        spySecureStorageService = spyk(secureStorageService)
 
-        lockScreenKeyRepository = LockScreenKeyRepository(InstrumentationRegistry.getInstrumentation().context, "base")
+        systemKeyHelper = spyk(SystemKeyHelper.create("base.system")) {
+            every { initializeKeyOrThrow(any()) } returns Unit
+        }
+        mockkObject(SystemKeyHelper.Companion)
+        every { SystemKeyHelper.create(any()) } returns systemKeyHelper
+        lockScreenKeyRepository = LockScreenKeyRepository("base", pinCodeMigrator, spySecureStorageService, vectorPreferences)
     }
 
     @After
     fun tearDown() {
-        unmockkObject(KeyStoreCryptoCompat)
+        clearAllMocks()
+        keyStore.deleteEntry("base.pin_code")
+        keyStore.deleteEntry("base.system")
     }
 
     @Test
-    fun whenLegacyPinCodeKeyIsDeletedNewAliasWillBeUsed() {
-        createLegacyKey()
-        KeyStoreCrypto.containsKey(LockScreenKeyRepository.LEGACY_PIN_CODE_KEY_ALIAS).shouldBeTrue()
-        val pinCodeCrypto = lockScreenKeyRepository.getPinCodeKey()
-        pinCodeCrypto.alias shouldBeEqualTo LockScreenKeyRepository.LEGACY_PIN_CODE_KEY_ALIAS
-        KeyStoreCrypto.deleteKey(pinCodeCrypto.alias)
+    fun gettingSystemKeyAlsoInitializesIt() {
+        every { systemKeyHelper.ensureKey() } returns mockk()
+        every { systemKeyHelper.initializeKeyOrThrow(any()) } returns Unit
 
-        val newPinCodeCrypto = lockScreenKeyRepository.getPinCodeKey()
-        newPinCodeCrypto.alias shouldBeEqualTo "base.pin_code"
+        lockScreenKeyRepository.ensureSystemKey()
+
+        verify { systemKeyHelper.initializeKeyOrThrow(any()) }
     }
 
     @Test
-    fun gettingKeyStoreCryptoAlsoInitializesIt() {
-        val keyStoreCrypto = mockk<KeyStoreCrypto>(relaxed = true)
-        every { KeyStoreCryptoCompat.create(any(), any(), any()) } returns keyStoreCrypto
-
-        lockScreenKeyRepository.getSystemKey()
-
-        verify { keyStoreCrypto.initialize() }
+    fun ensureSystemKeyCreatesSystemKeyIfNeeded() {
+        lockScreenKeyRepository.ensureSystemKey()
+        lockScreenKeyRepository.hasSystemKey().shouldBeTrue()
     }
 
     @Test
-    fun getSystemKeyReturnsKeyWithSystemAlias() {
-        val systemKey = createSystemKey()
-        KeyStoreCrypto.containsKey(systemKey.alias).shouldBeTrue()
+    fun encryptPinCodeCreatesPinCodeKey() {
+        lockScreenKeyRepository.encryptPinCode("1234")
+        lockScreenKeyRepository.hasPinCodeKey().shouldBeTrue()
     }
 
     @Test
-    fun getPinCodeKeyReturnsKeyWithPinCodeAlias() {
-        val pinCodeKey = lockScreenKeyRepository.getPinCodeKey()
-        KeyStoreCrypto.containsKey(pinCodeKey.alias).shouldBeTrue()
-    }
+    fun isSystemKeyValidReturnsWhatSystemKeyHelperHasValidKeyReplies() {
+        every { systemKeyHelper.initializeKeyOrThrow(any()) } returns Unit
 
-    @Test
-    fun isSystemKeyValidReturnsWhatKeyStoreCryptoReplies() {
-        val keyStoreCrypto = mockk<KeyStoreCrypto>(relaxed = true) {
-            every { hasValidKey() } returns false
-        }
-        every { KeyStoreCryptoCompat.create(any(), any(), any()) } returns keyStoreCrypto
+        // Key needs to exist to be check validity
+        lockScreenKeyRepository.ensureSystemKey()
 
+        every { systemKeyHelper.hasValidKey() } returns false
         lockScreenKeyRepository.isSystemKeyValid().shouldBeFalse()
+
+        every { systemKeyHelper.hasValidKey() } returns true
+        lockScreenKeyRepository.isSystemKeyValid().shouldBeTrue()
     }
 
     @Test
     fun hasSystemKeyReturnsTrueAfterSystemKeyIsCreated() {
         lockScreenKeyRepository.hasSystemKey().shouldBeFalse()
 
-        createSystemKey()
+        lockScreenKeyRepository.ensureSystemKey()
 
         lockScreenKeyRepository.hasSystemKey().shouldBeTrue()
     }
@@ -106,14 +124,14 @@ class LockScreenKeyRepositoryTests {
     fun hasPinCodeKeyReturnsTrueAfterPinCodeKeyIsCreated() {
         lockScreenKeyRepository.hasPinCodeKey().shouldBeFalse()
 
-        lockScreenKeyRepository.getPinCodeKey()
+        lockScreenKeyRepository.encryptPinCode("1234")
 
         lockScreenKeyRepository.hasPinCodeKey().shouldBeTrue()
     }
 
     @Test
     fun deleteSystemKeyRemovesTheKeyFromKeyStore() {
-        createSystemKey()
+        lockScreenKeyRepository.ensureSystemKey()
         lockScreenKeyRepository.hasSystemKey().shouldBeTrue()
 
         lockScreenKeyRepository.deleteSystemKey()
@@ -123,24 +141,11 @@ class LockScreenKeyRepositoryTests {
 
     @Test
     fun deletePinCodeKeyRemovesTheKeyFromKeyStore() {
-        lockScreenKeyRepository.getPinCodeKey()
+        lockScreenKeyRepository.encryptPinCode("1234")
         lockScreenKeyRepository.hasPinCodeKey().shouldBeTrue()
 
         lockScreenKeyRepository.deletePinCodeKey()
 
         lockScreenKeyRepository.hasPinCodeKey().shouldBeFalse()
-    }
-
-    private fun createSystemKey(): KeyStoreCrypto = lockScreenKeyRepository.getSystemKey {
-        // We need to disable this for UI tests since the test device probably won't have any enrolled biometric methods
-        setUserAuthenticationRequired(false)
-    }
-
-    private fun createLegacyKey() {
-        val legacyKeyCrypto = KeyStoreCryptoCompat.create(
-                InstrumentationRegistry.getInstrumentation().context,
-                LockScreenKeyRepository.LEGACY_PIN_CODE_KEY_ALIAS
-        )
-        legacyKeyCrypto.initialize()
     }
 }

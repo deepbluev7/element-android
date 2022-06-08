@@ -94,7 +94,7 @@ class BiometricHelper @Inject constructor(
     /**
      * Returns true if any system authentication method and there is a valid associated key.
      */
-    val isSystemAuthEnabled: Boolean get() = canUseAnySystemAuth && (hasSystemKey || isUsingLegacyAuthentication)
+    val isSystemAuthEnabledAndValid: Boolean get() = canUseAnySystemAuth && isSystemKeyValid
 
     /**
      * Returns true is the [KeyStore] contains a key associated to system authentication.
@@ -107,11 +107,6 @@ class BiometricHelper @Inject constructor(
     val isSystemKeyValid: Boolean get() = lockScreenKeyRepository.isSystemKeyValid()
 
     /**
-     * Returns true when it's using the legacy implementation of the PIN code library.
-     */
-    val isUsingLegacyAuthentication: Boolean get() = lockScreenKeyRepository.isUsingLegacyPinCodeKey() && !lockScreenKeyRepository.hasSystemKey()
-
-    /**
      * Enables system authentication after displaying a [BiometricPrompt] in the passed [FragmentActivity].
      * Note: Must be called from the Main thread.
      * @return: A [Flow] with the [Boolean] success/failure result or a [BiometricAuthError].
@@ -122,7 +117,7 @@ class BiometricHelper @Inject constructor(
     }
 
     /**
-     * Disables system authentication, removing the system key and cancelling the current [BiometricPrompt] if needed.
+     * Disables system authentication cancelling the current [BiometricPrompt] if needed.
      * Note: Must be called from the Main thread.
      */
     @MainThread
@@ -158,7 +153,7 @@ class BiometricHelper @Inject constructor(
         checkSystemKeyExists: Boolean,
         cryptoObject: BiometricPrompt.CryptoObject? = null,
     ): Flow<Boolean> {
-        if (checkSystemKeyExists && !isSystemAuthEnabled) return flowOf(false)
+        if (checkSystemKeyExists && !isSystemAuthEnabledAndValid) return flowOf(false)
 
         if (prompt != null) {
             cancelPrompt()
@@ -180,8 +175,8 @@ class BiometricHelper @Inject constructor(
                 }
             }
             // Generates the system key on successful authentication
-            if (!hasSystemKey) {
-                lockScreenKeyRepository.getSystemKey()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                lockScreenKeyRepository.ensureSystemKey()
             }
             // Channel is closed, remove prompt reference
             prompt = null

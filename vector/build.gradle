@@ -165,7 +165,7 @@ android {
         buildConfigField "Boolean", "enableLocationSharing", "true"
         buildConfigField "String", "mapTilerKey", "\"fU3vlMsMn4Jb6dnEIFsx\""
 
-        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "im.vector.app.HiltTestRunner"
 
         // Keep abiFilter for the universalApk
         ndk {
@@ -549,4 +549,7 @@ dependencies {
     }
     androidTestImplementation libs.mockk.mockkAndroid
     androidTestUtil libs.androidx.orchestrator
+    // Hilt
+    androidTestImplementation libs.dagger.hiltAndroidTesting
+    kaptAndroidTest libs.dagger.hiltCompiler
 }

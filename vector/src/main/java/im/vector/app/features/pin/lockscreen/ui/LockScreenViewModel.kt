@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.runBlocking
 
 class LockScreenViewModel @AssistedInject constructor(
         @Assisted val initialState: LockScreenViewState,
@@ -80,6 +81,9 @@ class LockScreenViewModel @AssistedInject constructor(
     private var isSystemAuthTemporarilyDisabledByBiometricPrompt = false
 
     init {
+        // We need this to run synchronously before we start reading the configurations
+        runBlocking { pinCodeHelper.migratePinCodeIfNeeded() }
+
         configuratorProvider.configurationFlow
                 .onEach { updateConfiguration(it) }
                 .launchIn(viewModelScope)
@@ -158,7 +162,7 @@ class LockScreenViewModel @AssistedInject constructor(
         val configuration = withState(this) { it.lockScreenConfiguration }
         val canUseBiometricAuth = configuration.mode == LockScreenMode.VERIFY &&
                 !isSystemAuthTemporarilyDisabledByBiometricPrompt &&
-                biometricHelper.isSystemAuthEnabled
+                biometricHelper.isSystemAuthEnabledAndValid
         val isBiometricKeyInvalidated = biometricHelper.hasSystemKey && !biometricHelper.isSystemKeyValid
         val showBiometricPromptAutomatically = canUseBiometricAuth &&
                 configuration.autoStartBiometric
